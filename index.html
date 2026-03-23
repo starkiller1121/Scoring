@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>輪盤記分板</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Microsoft JhengHei", Arial, sans-serif;
+      background: #f4f6f9;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .layout {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+    }
+
+    .left-panel, .right-panel {
+      background: #fff;
+      border-radius: 18px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+      padding: 20px;
+    }
+
+    .left-panel {
+      flex: 1;
+      min-width: 380px;
+    }
+
+    .right-panel {
+      flex: 1.2;
+      min-width: 420px;
+    }
+
+    h2, h3 {
+      margin-top: 0;
+    }
+
+    textarea {
+      width: 100%;
+      height: 120px;
+      resize: vertical;
+      border: 1px solid #ccc;
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 15px;
+      margin-bottom: 10px;
+    }
+
+    button {
+      border: none;
+      border-radius: 12px;
+      padding: 10px 16px;
+      font-size: 15px;
+      cursor: pointer;
+      margin: 4px 6px 4px 0;
+    }
+
+    .btn-primary {
+      background: #2d89ef;
+      color: white;
+    }
+
+    .btn-danger {
+      background: #e74c3c;
+      color: white;
+    }
+
+    .btn-success {
+      background: #27ae60;
+      color: white;
+    }
+
+    .btn-warning {
+      background: #f39c12;
+      color: white;
+    }
+
+    .btn-gray {
+      background: #7f8c8d;
+      color: white;
+    }
+
+    .wheel-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 10px;
+    }
+
+    .pointer {
+      width: 0;
+      height: 0;
+      border-left: 18px solid transparent;
+      border-right: 18px solid transparent;
+      border-top: 28px solid #e74c3c;
+      margin-bottom: 8px;
+      z-index: 2;
+    }
+
+    .wheel-wrap {
+      position: relative;
+      width: 360px;
+      height: 360px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    canvas {
+      background: #fff;
+      border-radius: 50%;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    }
+
+    .winner-box {
+      margin-top: 16px;
+      width: 100%;
+      text-align: center;
+      padding: 14px;
+      border-radius: 14px;
+      background: #fff7d6;
+      font-size: 22px;
+      font-weight: bold;
+      color: #8a5a00;
+      min-height: 58px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 14px;
+    }
+
+    th, td {
+      padding: 12px 10px;
+      text-align: center;
+      border-bottom: 1px solid #eee;
+    }
+
+    th {
+      background: #fafafa;
+    }
+
+    .score {
+      font-size: 20px;
+      font-weight: bold;
+    }
+
+    .score-input {
+      width: 80px;
+      text-align: center;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+    }
+
+    .rank-1 {
+      background: #fff8dc;
+    }
+
+    .rank-2 {
+      background: #f7f7f7;
+    }
+
+    .rank-3 {
+      background: #fde7d1;
+    }
+
+    .toolbar {
+      margin-bottom: 10px;
+    }
+
+    .hint {
+      color: #666;
+      font-size: 14px;
+      margin-top: 6px;
+    }
+
+    @media (max-width: 1100px) {
+      .layout {
+        flex-direction: column;
+      }
+
+      .left-panel, .right-panel {
+        min-width: auto;
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>輪盤記分板</h1>
+
+  <div class="layout">
+    <!-- 左邊輪盤 -->
+    <div class="left-panel">
+      <h2>名單輪盤</h2>
+
+      <h3>批量輸入名單（每行一個）</h3>
+      <textarea id="bulkInput" placeholder="例如：
+小明
+小華
+小美
+阿成"></textarea>
+
+      <div class="toolbar">
+        <button class="btn-primary" onclick="addBulkPlayers()">一鍵加入名單</button>
+        <button class="btn-gray" onclick="clearAllPlayers()">清空全部名單</button>
+      </div>
+
+      <div class="hint">加入名單後，輪盤和右邊記分板都會同步更新。</div>
+
+      <div class="wheel-area">
+        <div class="pointer"></div>
+        <div class="wheel-wrap">
+          <canvas id="wheelCanvas" width="360" height="360"></canvas>
+        </div>
+
+        <div style="margin-top: 12px;">
+          <button class="btn-success" onclick="spinWheel()">開始旋轉</button>
+        </div>
+
+        <div class="winner-box" id="winnerBox">尚未抽出人選</div>
+      </div>
+    </div>
+
+    <!-- 右邊記分板 -->
+    <div class="right-panel">
+      <h2>多人記分板</h2>
+
+      <div class="toolbar">
+        <button class="btn-danger" onclick="resetScores()">全部歸零</button>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>排名</th>
+            <th>玩家</th>
+            <th>分數</th>
+            <th>輸入分數</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="scoreTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    let players = [];
+    let rotation = 0;
+    let isSpinning = false;
+
+    const canvas = document.getElementById("wheelCanvas");
+    const ctx = canvas.getContext("2d");
+    const winnerBox = document.getElementById("winnerBox");
+
+    const colors = [
+      "#FFCDD2", "#F8BBD0", "#E1BEE7", "#D1C4E9",
+      "#C5CAE9", "#BBDEFB", "#B3E5FC", "#B2EBF2",
+      "#B2DFDB", "#C8E6C9", "#DCEDC8", "#F0F4C3",
+      "#FFF9C4", "#FFECB3", "#FFE0B2", "#FFCCBC"
+    ];
+
+    function addBulkPlayers() {
+      const text = document.getElementById("bulkInput").value.trim();
+      if (!text) {
+        alert("請先輸入名單");
+        return;
+      }
+
+      const names = text
+        .split("\n")
+        .map(name => name.trim())
+        .filter(name => name !== "");
+
+      names.forEach(name => {
+        const exists = players.some(p => p.name === name);
+        if (!exists) {
+          players.push({ name, score: 0 });
+        }
+      });
+
+      document.getElementById("bulkInput").value = "";
+      renderAll();
+    }
+
+    function clearAllPlayers() {
+      if (!confirm("確定要清空全部名單與分數嗎？")) return;
+      players = [];
+      winnerBox.textContent = "尚未抽出人選";
+      rotation = 0;
+      renderAll();
+    }
+
+    function renderAll() {
+      drawWheel();
+      renderTable();
+    }
+
+    function drawWheel() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (players.length === 0) {
+        ctx.beginPath();
+        ctx.arc(180, 180, 170, 0, Math.PI * 2);
+        ctx.fillStyle = "#f0f0f0";
+        ctx.fill();
+        ctx.strokeStyle = "#ddd";
+        ctx.lineWidth = 4;
+        ctx.stroke();
+
+        ctx.fillStyle = "#666";
+        ctx.font = "20px Microsoft JhengHei";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("請先加入名單", 180, 180);
+        return;
+      }
+
+      const centerX = 180;
+      const centerY = 180;
+      const radius = 170;
+      const arcSize = (Math.PI * 2) / players.length;
+
+      for (let i = 0; i < players.length; i++) {
+        const startAngle = rotation + i * arcSize;
+        const endAngle = startAngle + arcSize;
+
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+        ctx.closePath();
+        ctx.fillStyle = colors[i % colors.length];
+        ctx.fill();
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.save();
+        ctx.translate(centerX, centerY);
+        ctx.rotate(startAngle + arcSize / 2);
+        ctx.textAlign = "right";
+        ctx.fillStyle = "#333";
+        ctx.font = "bold 18px Microsoft JhengHei";
+        ctx.fillText(players[i].name, radius - 18, 6);
+        ctx.restore();
+      }
+
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, 28, 0, Math.PI * 2);
+      ctx.fillStyle = "#ffffff";
+      ctx.fill();
+      ctx.strokeStyle = "#ccc";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+
+    function spinWheel() {
+      if (isSpinning) return;
+      if (players.length === 0) {
+        alert("請先加入名單");
+        return;
+      }
+
+      isSpinning = true;
+      winnerBox.textContent = "旋轉中...";
+
+      const extraSpins = Math.PI * 2 * (5 + Math.random() * 3);
+      const targetIndex = Math.floor(Math.random() * players.length);
+      const arcSize = (Math.PI * 2) / players.length;
+
+      // 指針在最上方，所以中獎區塊中心要轉到 -90度 位置
+      const targetAngle = (Math.PI * 1.5) - (targetIndex * arcSize + arcSize / 2);
+      const finalRotation = extraSpins + targetAngle;
+
+      const startRotation = rotation;
+      const duration = 4000;
+      const startTime = performance.now();
+
+      function animate(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+
+        const easeOut = 1 - Math.pow(1 - progress, 3);
+        rotation = startRotation + (finalRotation * easeOut);
+
+        drawWheel();
+
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          rotation = (startRotation + finalRotation) % (Math.PI * 2);
+          drawWheel();
+          isSpinning = false;
+          winnerBox.textContent = `抽到：${players[targetIndex].name}`;
+        }
+      }
+
+      requestAnimationFrame(animate);
+    }
+
+    function renderTable() {
+      const table = document.getElementById("scoreTable");
+      table.innerHTML = "";
+
+      const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
+
+      sortedPlayers.forEach((player, index) => {
+        const originalIndex = players.findIndex(p => p.name === player.name);
+        const tr = document.createElement("tr");
+
+        if (index === 0) tr.classList.add("rank-1");
+        else if (index === 1) tr.classList.add("rank-2");
+        else if (index === 2) tr.classList.add("rank-3");
+
+        tr.innerHTML = `
+          <td>${index + 1}</td>
+          <td>${player.name}</td>
+          <td class="score">${player.score}</td>
+          <td>
+            <input type="number" id="scoreInput-${originalIndex}" class="score-input" value="1" min="1">
+          </td>
+          <td>
+            <button class="btn-success" onclick="changeScore(${originalIndex}, 'add')">加分</button>
+            <button class="btn-warning" onclick="changeScore(${originalIndex}, 'subtract')">扣分</button>
+            <button class="btn-gray" onclick="deletePlayer(${originalIndex})">刪除</button>
+          </td>
+        `;
+
+        table.appendChild(tr);
+      });
+    }
+
+    function changeScore(index, action) {
+      const input = document.getElementById(`scoreInput-${index}`);
+      const value = parseInt(input.value);
+
+      if (isNaN(value) || value < 1) {
+        alert("請輸入正確分數");
+        return;
+      }
+
+      if (action === "add") {
+        players[index].score += value;
+      } else {
+        players[index].score -= value;
+      }
+
+      renderTable();
+    }
+
+    function deletePlayer(index) {
+      const deletedName = players[index].name;
+      players.splice(index, 1);
+
+      if (winnerBox.textContent.includes(deletedName)) {
+        winnerBox.textContent = "尚未抽出人選";
+      }
+
+      renderAll();
+    }
+
+    function resetScores() {
+      players.forEach(player => player.score = 0);
+      renderTable();
+    }
+
+    drawWheel();
+    renderTable();
+  </script>
+</body>
+</html>
